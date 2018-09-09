@@ -76,17 +76,14 @@ pub fn enc<R: Rng>(rng: &mut R, mpk: &Mpk, ids: &[&str]) -> (Gt, Hdr) {
     // s <- ZZ
     let s = Fr::rand(rng);
 
-    // a = prod_(j=1)^n ID_j * s
-    let a = ids.iter()
-        .map(|id| {
-            let mut id = str_to_fr(id);
-            id.mul_assign(&s);
-            id
-        })
+    // a = (prod_(j=1)^n ID_j) * s
+    let mut a = ids.iter()
+        .map(|id| str_to_fr(id))
         .fold(Fr::one(), |mut sum, next| {
             sum.mul_assign(&next);
             sum
         });
+    a.mul_assign(&s);
 
     // A = Y^a
     let aa = yy.into_affine().mul(a.into_repr());
@@ -137,4 +134,8 @@ fn test_ibbe() {
     let (k, ct) = enc(&mut rng, &mpk, &["alice@ibe.rs", "bob@ibe.rs"]);
     let k2 = dec(&sk, &ct, "alice@ibe.rs", &["alice@ibe.rs", "bob@ibe.rs"]).unwrap();
     assert_eq!(k, k2);
+
+    let sk = keygen(&mut rng, &mpk, &msk, "bob@ibe.rs");
+    let k3 = dec(&sk, &ct, "bob@ibe.rs", &["alice@ibe.rs", "bob@ibe.rs"]).unwrap();
+    assert_eq!(k, k3);
 }
